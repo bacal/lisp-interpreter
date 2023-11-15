@@ -10,6 +10,8 @@ pub enum LispParseError{
     InvalidArgument,
     MissingSymbol,
     InvalidFunction(String),
+    MissingLeftParen,
+    MissingRightParen,
 }
 
 enum UnaryOp{
@@ -31,8 +33,12 @@ impl Parser {
     }
     pub fn evaluate(&mut self, tokens: &[Token]) -> Result<f64,LispParseError> {
         let mut iter = tokens.iter().peekable();
-        let mut res = self.evaluate_parenthesis(&mut iter);
-        res
+        if let Some(t) = iter.peek(){
+            if **t!=Token::LeftParen{
+                return Err(LispParseError::MissingLeftParen)
+            }
+        }
+        self.evaluate_parenthesis(&mut iter)
     }
 
     fn evaluate_parenthesis(&mut self, iter: &mut Peekable<Iter<Token>>) -> Result<f64,LispParseError> {
@@ -48,8 +54,16 @@ impl Parser {
                 Token::ForwardSlash => res += self.eval_unary(iter, UnaryOp::Division)?,
                 Token::Defvar => res += self.insert_data(iter)?,
                 Token::Symbol(s) => return Err(LispParseError::InvalidFunction(s.clone())),
-                _ => {}
+                _ => {},
             }
+        }
+        if let Some(t) = iter.peek(){
+            if **t != Token::RightParen{
+                return Err(LispParseError::MissingRightParen);
+            }
+        }
+        else if let None = iter.peek(){
+            return Err(LispParseError::MissingRightParen);
         }
         iter.next();
         Ok(res)
