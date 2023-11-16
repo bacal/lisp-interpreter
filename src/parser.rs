@@ -62,7 +62,7 @@ impl Parser {
                 return Err(LispParseError::MissingRightParen);
             }
         }
-        else if let None = iter.peek(){
+        else if iter.peek().is_none(){
             return Err(LispParseError::MissingRightParen);
         }
         iter.next();
@@ -105,7 +105,7 @@ impl Parser {
                     Ok(*val)
                 }
                 else{
-                    return Err(LispParseError::InvalidSymbol(s.clone()));
+                     Err(LispParseError::InvalidSymbol(s.clone()))
                 }
             }
             Some(Token::LeftParen) => {
