@@ -1,4 +1,4 @@
-#[derive(Debug,PartialEq)]
+#[derive(Debug,PartialEq,Clone)]
 pub enum Token{
     LeftParen,
     RightParen,
@@ -11,6 +11,7 @@ pub enum Token{
     Number(f64),
     Defun,
     Defvar,
+    Exp,
 }
 pub fn scan_tokens(input: &str) -> Vec<Token>{
     let mut chars = input.chars().enumerate().peekable();

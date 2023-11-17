@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::iter::Peekable;
 use std::slice::Iter;
 use crate::scanner::Token;
+use phf::phf_map;
 
 #[derive(Debug)]
 pub enum LispParseError{
@@ -12,6 +13,15 @@ pub enum LispParseError{
     InvalidFunction(String),
     MissingLeftParen,
     MissingRightParen,
+    MissingFunctionBody,
+    MissingFunctionName,
+    MissingArguments,
+    UnexpectedEndWhileParsing,
+}
+
+enum ParseResult{
+    InsertedFunc(String),
+    EvalUnary(f64),
 }
 
 enum UnaryOp{
@@ -20,25 +30,43 @@ enum UnaryOp{
     Multiplication,
     Division,
 }
-
+struct Function{
+    args: Vec<Token>,
+    expr: Vec<Token>,
+}
 pub struct Parser {
     variables: HashMap<String,f64>,
+    functions: HashMap<String, Function>,
+    fn_parsed: bool,
 }
 
 impl Parser {
     pub fn new() -> Self{
         Self{
-            variables: HashMap::new()
+            variables: HashMap::new(),
+            functions: HashMap::new(),
+            fn_parsed: false,
         }
     }
-    pub fn evaluate(&mut self, tokens: &[Token]) -> Result<f64,LispParseError> {
+    pub fn evaluate(&mut self, tokens: &[Token]) {
         let mut iter = tokens.iter().peekable();
         if let Some(t) = iter.peek(){
             if **t!=Token::LeftParen{
-                return Err(LispParseError::MissingLeftParen)
+                println!("ParseError: {:?}", LispParseError::MissingLeftParen)
             }
         }
-        self.evaluate_parenthesis(&mut iter)
+
+        let res = self.evaluate_parenthesis(&mut iter);
+        println!("{}",res.unwrap_or(0.0));
+        // match res{
+        //     Ok(val) => {
+        //         match val{
+        //             ParseResult::EvalUnary(numeric_result) => println!("{numeric_result}"),
+        //             ParseResult::InsertedFunc(function_name) => println!("{function_name}"),
+        //         }
+        //     }
+        //     Err(e) => println!("ParseError: {:?}", e),
+        // }
     }
 
     fn evaluate_parenthesis(&mut self, iter: &mut Peekable<Iter<Token>>) -> Result<f64,LispParseError> {
@@ -52,24 +80,32 @@ impl Parser {
                 Token::Minus => res += self.eval_unary(iter, UnaryOp::Subtraction)?,
                 Token::Asterisk => res += self.eval_unary(iter, UnaryOp::Multiplication)?,
                 Token::ForwardSlash => res += self.eval_unary(iter, UnaryOp::Division)?,
-                Token::Defvar => res += self.insert_data(iter)?,
-                Token::Symbol(s) => return Err(LispParseError::InvalidFunction(s.clone())),
+                Token::Defvar => res += self.insert_var(iter)?,
+                Token::Defun => self.push_function(iter)?,
+                Token::Symbol(s) => res += self.eval_function(s,iter)?,
                 _ => {},
             }
         }
-        if let Some(t) = iter.peek(){
-            if **t != Token::RightParen{
-                return Err(LispParseError::MissingRightParen);
+        match iter.peek(){
+            Some(Token::RightParen) => {
+                iter.next();
+                Ok(res)
+            },
+            Some(_) =>Err(LispParseError::MissingRightParen),
+            None => {
+                if self.fn_parsed{
+                    self.fn_parsed = false;
+                    Ok(res)
+                }
+                else{
+                    Err(LispParseError::MissingRightParen)
+                }
             }
         }
-        else if iter.peek().is_none(){
-            return Err(LispParseError::MissingRightParen);
-        }
-        iter.next();
-        Ok(res)
+
     }
 
-    fn insert_data(&mut self, iter: &mut Peekable<Iter<Token>>) -> Result<f64,LispParseError>{
+    fn insert_var(&mut self, iter: &mut Peekable<Iter<Token>>) -> Result<f64,LispParseError>{
         match iter.next(){
             Some(Token::Symbol(var_name)) => {
                 let val = match iter.next() {
@@ -86,17 +122,29 @@ impl Parser {
     }
 
     fn eval_unary(&mut self, iter: &mut Peekable<Iter<Token>>, operation: UnaryOp) -> Result<f64, LispParseError> {
-        let (a, b) = (self.get_value(iter)?,self.get_value(iter)?);
-        Ok(match operation {
-            UnaryOp::Addition => a + b,
-            UnaryOp::Subtraction => a - b,
-            UnaryOp::Multiplication => a * b,
-            UnaryOp::Division => a / b,
-        })
+        let mut res : Option<f64> = None;
+        while let Ok(arg) = self.get_value(iter){
+            if res.is_none(){
+                let _ = res.insert(arg);
+            }
+            else{
+                let t = res.get_or_insert_with(|| 0.0);
+                match operation {
+                    UnaryOp::Addition => *t+=arg,
+                    UnaryOp::Subtraction => *t-=arg,
+                    UnaryOp::Multiplication => *t*=arg,
+                    UnaryOp::Division => *t/=arg,
+                }
+            }
+        }
+        match res{
+            Some(res) => Ok(res),
+            None => Err(LispParseError::InvalidArgument),
+        }
     }
 
     fn get_value(&mut self, iter:  &mut Peekable<Iter<Token>>) -> Result<f64,LispParseError>{
-        match iter.next() {
+        match iter.next_if(|t| **t!= Token::RightParen) {
             Some(Token::Number(n)) => {
                 Ok(*n)
             }
@@ -111,7 +159,57 @@ impl Parser {
             Some(Token::LeftParen) => {
                 Ok(self.evaluate_parenthesis(iter)?)
             }
-            Some(_) | None => Err(LispParseError::InvalidArgument)
+            Some(_) | None => Err(LispParseError::InvalidArgument),
+        }
+    }
+    fn push_function(&mut self, iter: &mut Peekable<Iter<Token>>) -> Result<(),LispParseError> {
+        if let Some(Token::Symbol(fn_name)) = iter.next(){
+            let mut args = vec![];
+            while let Some(t) = iter.next_if(|t| **t != Token::LeftParen){
+                args.push(t.clone());
+            }
+            let mut expr: Vec<Token> = vec![];
+            let mut left_paren = 1;
+            while let Some(t) = iter.next_if(|t| **t != Token::RightParen){
+                if *t == Token::LeftParen{
+                    left_paren+=1;
+                }
+                expr.push(t.clone());
+            }
+            let mut right_paren = 0;
+            while let Some(_) = iter.next_if(|t| **t == Token::RightParen){
+                expr.push(Token::RightParen);
+                right_paren+=1
+            }
+            if right_paren != left_paren {
+                return Err(LispParseError::MissingRightParen);
+            }
+            self.functions.insert(fn_name.to_string(),Function{args,expr});
+            self.fn_parsed = true;
+            Ok(())
+        }
+        else{
+            Err(LispParseError::MissingFunctionName)
+        }
+    }
+    fn eval_function(&mut self, function_name: &String, iter: &mut Peekable<Iter<Token>>) -> Result<f64,LispParseError> {
+        let mut args = vec![];
+        while let Some(t) = iter.next_if(|t| **t != Token::RightParen){
+            args.push(t.clone());
+        }
+        match self.functions.get(function_name) {
+            Some(fun) => {
+                let mut expr = fun.expr.clone();
+                for (arg, replace_arg) in fun.args.iter().zip(args) {
+                    expr.iter_mut().for_each(|t| {
+                        if t == arg{
+                            *t = (replace_arg).clone()
+                        }
+                    });
+                }
+                self.evaluate_parenthesis(&mut expr.iter().peekable())
+            },
+            None => Err(LispParseError::InvalidFunction(function_name.clone()))
         }
     }
 }
