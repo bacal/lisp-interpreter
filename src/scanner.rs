@@ -11,7 +11,8 @@ pub enum Token{
     Number(f64),
     Defun,
     Defvar,
-    Exp,
+    Carat,
+    Dollar,
 }
 pub fn scan_tokens(input: &str) -> Vec<Token>{
     let mut chars = input.chars().enumerate().peekable();
@@ -26,6 +27,8 @@ pub fn scan_tokens(input: &str) -> Vec<Token>{
             '-' => tokens.push(Token::Minus),
             '*' => tokens.push(Token::Asterisk),
             '/' => tokens.push(Token::ForwardSlash),
+            '^' => tokens.push(Token::Carat),
+            '$' => tokens.push(Token::Dollar),
             '\'' => {
                 while let Some((_, c)) = chars.next_if(|(_, c)| *c != '\'') {
                     buffer.push(c);
