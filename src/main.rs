@@ -15,10 +15,7 @@ fn main() {
                 match line.to_lowercase().as_str() {
                     "exit" => { println!("exiting"); break; }
 
-                    _ => match parser.evaluate(&scanner::scan_tokens(line.as_str())){
-                        Ok(val) => println!("{val}"),
-                        Err(e) => println!("ParseError: {:?}", e),
-                    }
+                    _ => parser.evaluate(&scanner::scan_tokens(line.as_str()))
                 }
 
             },

@@ -1,4 +1,4 @@
-#[derive(Debug,PartialEq)]
+#[derive(Debug,PartialEq,Clone)]
 pub enum Token{
     LeftParen,
     RightParen,
@@ -11,12 +11,13 @@ pub enum Token{
     Number(f64),
     Defun,
     Defvar,
+    Exp,
 }
 pub fn scan_tokens(input: &str) -> Vec<Token>{
     let mut chars = input.chars().enumerate().peekable();
     let mut tokens = vec![];
     let mut buffer = String::new();
-    while let Some((i,c)) = chars.next(){
+    while let Some((_i,c)) = chars.next(){
         match c {
             ' ' | '\t' |'\n' => {}
             '(' => tokens.push(Token::LeftParen),
