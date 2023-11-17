@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::iter::Peekable;
 use std::slice::Iter;
 use crate::scanner::Token;
-use phf::phf_map;
 
 #[derive(Debug)]
 pub enum LispParseError{
