@@ -10,12 +10,8 @@ pub enum LispParseError{
     InvalidArgument,
     MissingSymbol,
     InvalidFunction(String),
-    MissingLeftParen,
     MissingRightParen,
-    MissingFunctionBody,
     MissingFunctionName,
-    MissingArguments,
-    UnexpectedEndWhileParsing,
     SyntaxError,
 }
 
@@ -150,7 +146,7 @@ impl Parser {
                 let _ = res.insert(arg);
             }
             else{
-                let t = res.get_or_insert_with(|| 0.0);
+                let t = res.get_or_insert(0.0);
                 match operation {
                     UnaryOp::Addition => *t+=arg,
                     UnaryOp::Subtraction => *t-=arg,
@@ -211,7 +207,7 @@ impl Parser {
                 expr.push(t.clone());
             }
             let mut right_paren = 0;
-            while let Some(_) = iter.next_if(|t| **t == Token::RightParen){
+            while iter.next_if(|t| **t == Token::RightParen).is_some(){
                 expr.push(Token::RightParen);
                 right_paren+=1
             }
