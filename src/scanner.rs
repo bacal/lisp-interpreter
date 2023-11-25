@@ -39,7 +39,7 @@ pub fn scan_tokens(input: &str) -> Vec<Token>{
             }
             _ => {
                 buffer.push(c);
-                while let Some((_,c)) = chars.next_if(|(_,c)| c.is_alphanumeric()){
+                while let Some((_,c)) = chars.next_if(|(_,c)| c.is_alphanumeric() || *c == '.'){
                     buffer.push(c);
                 }
                 if let Ok(num) = buffer.parse::<f64>(){
