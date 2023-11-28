@@ -15,6 +15,7 @@ pub enum Token{
     Defvar,
     Carat,
     Dollar,
+    Tick,
 }
 pub fn scan_tokens(input: &str) -> Vec<Token>{
     let mut chars = input.chars().enumerate().peekable();
@@ -32,12 +33,18 @@ pub fn scan_tokens(input: &str) -> Vec<Token>{
             '^' => tokens.push(Token::Carat),
             '$' => tokens.push(Token::Dollar),
             '\'' => {
-                while let Some((_, c)) = chars.next_if(|(_, c)| *c != '\'') {
-                    buffer.push(c);
+                if let Some((_, c)) = chars.next(){
+                    if let Some((_,_)) = chars.next_if(|(_,c)| *c =='\''){
+                        buffer.push(c);
+                        tokens.push(Token::String(buffer.clone()));
+                        buffer.clear();
+                        chars.next();
+                    }
+                    else{
+                        tokens.push(Token::Tick);
+                        buffer.push(c)
+                    }
                 }
-                tokens.push(Token::String(buffer.clone()));
-                buffer.clear();
-                chars.next();
             }
             _ => {
                 buffer.push(c);
@@ -59,6 +66,9 @@ pub fn scan_tokens(input: &str) -> Vec<Token>{
             },
         }
     }
+    if !buffer.is_empty(){
+        tokens.push(Token::Symbol(buffer))
+    }
     tokens
 }
 
@@ -79,6 +89,7 @@ impl std::fmt::Display for Token{
             Token::Defvar => "defvar".to_string(),
             Token::Carat => "^".to_string(),
             Token::Dollar => "$".to_string(),
+            Token::Tick => "'".to_string(),
         })
     }
 }
