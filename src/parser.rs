@@ -3,7 +3,6 @@ use std::fmt::Formatter;
 use std::iter::Peekable;
 use std::slice::Iter;
 use crate::scanner::Token;
-use itertools;
 use itertools::Itertools;
 
 #[derive(Debug,Clone)]
@@ -212,6 +211,14 @@ impl Parser {
                     ParseResult::EvalUnary(val) => Ok(*val),
                     ParseResult::ParseError(e) => Err((*e).clone()),
                     _ => Err(LispParseError::InvalidArgument),
+                }
+            }
+            Some(Token::Minus) => {
+                if let Some(Token::Number(n)) = iter.next(){
+                    Ok(-n)
+                }
+                else{
+                    Err(LispParseError::InvalidArgument)
                 }
             }
             Some(_) | None => Err(LispParseError::InvalidArgument),
