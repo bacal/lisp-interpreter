@@ -1,7 +1,10 @@
 use std::collections::HashMap;
+use std::fmt::Formatter;
 use std::iter::Peekable;
 use std::slice::Iter;
 use crate::scanner::Token;
+use itertools;
+use itertools::Itertools;
 
 #[derive(Debug,Clone)]
 pub enum LispParseError{
@@ -29,10 +32,23 @@ enum UnaryOp{
     Division,
     Exponential,
 }
+
+#[derive(Debug)]
 struct Function{
     args: Vec<Token>,
     expr: Vec<Token>,
 }
+
+impl std::fmt::Display for Function{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let args = self.args.iter().join(" ");
+        let exprs = self.expr.iter().join(" ");
+
+        write!(f, "Args: {}\nBody:{}",args,exprs)
+    }
+}
+
+
 pub struct Parser {
     variables: HashMap<String,f64>,
     functions: HashMap<String, Function>,
@@ -76,6 +92,15 @@ impl Parser {
                         self.parse_result = ParseResult::ParseError(e);
                     },
                 }
+            },
+            Some(Token::Symbol(s)) =>{
+              match s.as_str(){
+                  "ftab" => self.print_function_table(),
+                  _ =>{
+                      println!("parse error: {:?}", LispParseError::SyntaxError);
+                      self.parse_result = ParseResult::ParseError(LispParseError::SyntaxError)
+                  }
+              }
             },
             _ => {
                 println!("parse error: {:?}", LispParseError::SyntaxError);
@@ -211,6 +236,7 @@ impl Parser {
                 expr.push(Token::RightParen);
                 right_paren+=1
             }
+            expr.pop();
             if right_paren != left_paren {
                 return Err(LispParseError::MissingRightParen);
             }
@@ -242,5 +268,10 @@ impl Parser {
             },
             None => Err(LispParseError::InvalidFunction(function_name.clone()))
         }
+    }
+
+    fn print_function_table(&self){
+        self.functions.iter()
+            .for_each(|(name,fun)| println!("Name: [{}]\n{}\n",name,fun));
     }
 }
