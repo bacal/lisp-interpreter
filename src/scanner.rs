@@ -1,3 +1,5 @@
+use std::fmt::Formatter;
+
 #[derive(Debug,PartialEq,Clone)]
 pub enum Token{
     LeftParen,
@@ -58,4 +60,25 @@ pub fn scan_tokens(input: &str) -> Vec<Token>{
         }
     }
     tokens
+}
+
+
+impl std::fmt::Display for Token{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f,"{}", match self{
+            Token::LeftParen => "(".to_string(),
+            Token::RightParen => ")".to_string(),
+            Token::Symbol(s) => s.clone(),
+            Token::Plus => "+".to_string(),
+            Token::Minus => "-".to_string(),
+            Token::Asterisk => "*".to_string(),
+            Token::ForwardSlash => "/".to_string(),
+            Token::String(s) => format!("\"{}\"",s.as_str()),
+            Token::Number(n) => format!("{n}"),
+            Token::Defun => "defun".to_string(),
+            Token::Defvar => "defvar".to_string(),
+            Token::Carat => "^".to_string(),
+            Token::Dollar => "$".to_string(),
+        })
+    }
 }
