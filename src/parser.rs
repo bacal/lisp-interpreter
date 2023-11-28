@@ -271,7 +271,7 @@ impl Parser {
     }
 
     fn print_function_table(&self){
-        let function_str = self.functions.iter()
+        self.functions.iter()
             .for_each(|(name,fun)| println!("Name: [{}]\n{}\n",name,fun));
     }
 }
