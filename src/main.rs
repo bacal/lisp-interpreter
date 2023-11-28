@@ -12,6 +12,10 @@ fn main() {
         match readline {
             Ok(line) => {
                 match line.to_lowercase().as_str() {
+                    "ftab" => parser.print_function_table(),
+                    "vars" => parser.print_variables(),
+                    "help" => print_help(),
+                    "clear" => rl.clear_screen().expect("lisp_interp: failed to clear screen"),
                     "exit" => { println!("exiting"); break; }
                     s if s.is_empty() => {},
                     _ => {
@@ -25,4 +29,13 @@ fn main() {
             Err(_) => { println!("exiting"); break; }
         }
     }
+}
+
+fn print_help() {
+    println!("Builtins");
+    println!("ftab - print function table");
+    println!("vars - print stored variables");
+    println!("clear - clears screen");
+    println!("help - print help");
+    println!("exit - close interpreter");
 }

@@ -92,15 +92,22 @@ impl Parser {
                     },
                 }
             },
-            Some(Token::Symbol(s)) =>{
-              match s.as_str(){
-                  "ftab" => self.print_function_table(),
-                  _ =>{
-                      println!("parse error: {:?}", LispParseError::SyntaxError);
-                      self.parse_result = ParseResult::ParseError(LispParseError::SyntaxError)
-                  }
-              }
-            },
+            Some(Token::Tick) =>{
+                if let Some(Token::Symbol(s)) = iter.next(){
+                    match self.variables.get(s.as_str()){
+                        None => match self.functions.get(s.as_str()){
+                                None => println!("parse error: invalid variable or function name"),
+                                Some(f) => println!("[{s}]\n{f}"),
+                            }
+                        Some(var) =>  println!("[{s}] = {var}"),
+
+                    }
+                }
+                else{
+                    println!("parse error: expected variable or function name");
+                    self.parse_result = ParseResult::ParseError(LispParseError::InvalidArgument);
+                }
+            }
             _ => {
                 println!("parse error: {:?}", LispParseError::SyntaxError);
                 self.parse_result = ParseResult::ParseError(LispParseError::SyntaxError);
@@ -148,11 +155,7 @@ impl Parser {
     fn push_var(&mut self, iter: &mut Peekable<Iter<Token>>) -> Result<f64,LispParseError>{
         match iter.next(){
             Some(Token::Symbol(var_name)) => {
-                let val = match iter.next() {
-                    Some(Token::LeftParen) => self.eval_parenthesis(iter).expect("FatalError: failed to parse"),
-                    Some(Token::Number(n)) => *n,
-                    Some(_) | None => return Err(LispParseError::InvalidArgument),
-                };
+                let val = self.get_value(iter)?;
                 self.parse_result = ParseResult::InsertedVar(var_name.clone());
                 self.variables.insert(var_name.clone(), val);
                 Ok(val)
@@ -277,8 +280,12 @@ impl Parser {
         }
     }
 
-    fn print_function_table(&self){
+    pub fn print_function_table(&self){
         self.functions.iter()
             .for_each(|(name,fun)| println!("Name: [{}]\n{}\n",name,fun));
+    }
+    pub fn print_variables(&self) {
+        self.variables.iter().
+            for_each(|(name, val)| println!("[{name}] = {val}"));
     }
 }
